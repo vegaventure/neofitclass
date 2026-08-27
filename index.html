@@ -154,6 +154,7 @@
   .field input:focus, .field select:focus{outline:none;border-color:var(--yellow);}
   .form-row{display:flex;gap:10px;}
   .form-row .field{flex:1;}
+  input[type="radio"]{accent-color:var(--yellow);}
   /* ---------- Cards / generic ---------- */
   .card{
     background:var(--surface);
@@ -490,7 +491,42 @@ function toggleAdminPanel(){
 /* =========================================================
    CLASS CRUD (admin)
 ========================================================= */
-async function saveClass(payload, editingId){
+async function saveClass(payload, editingId, scope){
+  if(editingId && scope === 'all'){
+    // Fetch the original row first so we know what to match on (old values),
+    // since payload only carries the NEW values.
+    const { data: orig, error: fetchErr } = await sb.from('classes').select('*').eq('id', editingId).single();
+    if(fetchErr){ showToast('Gagal mengambil data kelas: ' + fetchErr.message); return; }
+
+    const dow = new Date(orig.class_date + 'T00:00:00').getDay();
+    const todayKey = toDateKey(startOfDay(new Date()));
+    const changes = { time: payload.time, name: payload.name, instructor: payload.instructor };
+
+    // Update the matching weekly template too, if this class came from one.
+    await sb.from('templates')
+      .update(changes)
+      .eq('branch', orig.branch).eq('day_of_week', dow)
+      .eq('time', orig.time).eq('name', orig.name).eq('instructor', orig.instructor);
+
+    // Find every future dated class that matches the OLD pattern on the same weekday.
+    const { data: candidates, error: candErr } = await sb.from('classes')
+      .select('id, class_date')
+      .eq('branch', orig.branch).eq('time', orig.time).eq('name', orig.name).eq('instructor', orig.instructor)
+      .gte('class_date', todayKey);
+    if(candErr){ showToast('Gagal mencari jadwal terkait: ' + candErr.message); return; }
+
+    const idsToUpdate = candidates.filter(c => new Date(c.class_date + 'T00:00:00').getDay() === dow).map(c => c.id);
+    if(idsToUpdate.length){
+      const { error: updErr } = await sb.from('classes').update(changes).in('id', idsToUpdate);
+      if(updErr){ showToast('Gagal memperbarui semua jadwal: ' + updErr.message); return; }
+    }
+    closeModal();
+    showToast(`Diperbarui untuk ${idsToUpdate.length} tanggal ke depan (+ template).`);
+    await refreshMonth();
+    render();
+    return;
+  }
+
   let error;
   if(editingId){
     ({ error } = await sb.from('classes').update(payload).eq('id', editingId));
@@ -850,6 +886,19 @@ function openClassForm(editingId){
         <label>Instruktur</label>
         <input type="text" id="fInstructor" value="${cls ? cls.instructor : ''}">
       </div>
+      ${cls ? `
+      <div class="field">
+        <label>Terapkan Perubahan Ke</label>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:2px;">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--text);font-weight:600;cursor:pointer;">
+            <input type="radio" name="editScope" value="day" checked> Hanya tanggal ini
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--text);font-weight:600;cursor:pointer;">
+            <input type="radio" name="editScope" value="all"> Semua jadwal (hari yang sama, mulai hari ini)
+          </label>
+        </div>
+      </div>
+      ` : ''}
       <button class="btn btn-yellow btn-block" onclick="submitClassForm(${editingId || 'null'})">Simpan Kelas</button>
     </div>
   `);
@@ -863,7 +912,9 @@ function submitClassForm(editingId){
     showToast('Lengkapi semua kolom dengan benar.');
     return;
   }
-  saveClass({ branch: state.activeBranch, class_date, time, name, instructor }, editingId);
+  const scopeInput = document.querySelector('input[name="editScope"]:checked');
+  const scope = scopeInput ? scopeInput.value : 'day';
+  saveClass({ branch: state.activeBranch, class_date, time, name, instructor }, editingId, scope);
 }
 
 /* =========================================================
