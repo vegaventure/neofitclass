@@ -308,6 +308,11 @@
     flex-direction:column;
     justify-content:center;
   }
+  .sc-section-label{
+    font-size:10.5px;font-weight:800;letter-spacing:2px;text-transform:uppercase;
+    color:var(--yellow);margin:14px 0 4px;
+  }
+  .sc-section-label:first-child{margin-top:0;}
   .sc-class-row{display:flex;align-items:center;gap:14px;padding:10px 0;border-bottom:1px solid var(--border);}
   .sc-class-row:last-child{border-bottom:none;}
   .sc-class-time{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--text);width:60px;flex-shrink:0;line-height:1;}
@@ -742,19 +747,33 @@ function getNeofitLogoSrc(){
   const img = document.querySelector('.logo-img');
   return img ? img.src : '';
 }
+function renderClassRowHtml(c){
+  return `
+    <div class="sc-class-row">
+      <div class="sc-class-time">${c.time}</div>
+      <div class="sc-class-divider"></div>
+      <div class="sc-class-info">
+        <div class="sc-class-name">${c.name}</div>
+        <div class="sc-class-instructor">Instructor: ${c.instructor}</div>
+      </div>
+    </div>
+  `;
+}
 function renderShareCard(dayClasses){
-  const rows = dayClasses.length === 0
-    ? `<div class="sc-empty-day"><div class="sc-empty-big">Libur</div><div>Tidak ada kelas group fitness hari ini.</div></div>`
-    : dayClasses.map(c => `
-        <div class="sc-class-row">
-          <div class="sc-class-time">${c.time}</div>
-          <div class="sc-class-divider"></div>
-          <div class="sc-class-info">
-            <div class="sc-class-name">${c.name}</div>
-            <div class="sc-class-instructor">Instructor: ${c.instructor}</div>
-          </div>
-        </div>
-      `).join('');
+  let rows;
+  if(dayClasses.length === 0){
+    rows = `<div class="sc-empty-day"><div class="sc-empty-big">Libur</div><div>Tidak ada kelas group fitness hari ini.</div></div>`;
+  } else {
+    const morning = dayClasses.filter(c => c.time < '16:00');
+    const evening = dayClasses.filter(c => c.time >= '16:00');
+    rows = '';
+    if(morning.length){
+      rows += `<div class="sc-section-label">Pagi</div>` + morning.map(renderClassRowHtml).join('');
+    }
+    if(evening.length){
+      rows += `<div class="sc-section-label">Sore</div>` + evening.map(renderClassRowHtml).join('');
+    }
+  }
   return `
     <div class="sc-wrap">
       <div class="sc-stripe"></div>
