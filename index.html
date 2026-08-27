@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>NEOFIT — Jadwal Kelas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --ink:#0A0A0A;
+    --surface:#151515;
+    --surface-2:#1F1F1F;
+    --border:#2B2B2B;
+    --text:#F5F5F0;
+    --muted:#8C8C8C;
+    --yellow:#FFDE00;
+    --yellow-ink:#0A0A0A;
+    --yellow-dim:#332C00;
+    --green:#2ECC71;
+    --green-dim:#0F2A1B;
+    --danger:#FF5A5A;
+    --danger-dim:#331414;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--ink);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  ::selection{background:var(--yellow);color:var(--ink);}
+  .app{
+    max-width:560px;
+    margin:0 auto;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    background:var(--ink);
+    position:relative;
+  }
+  /* ---------- Signature stripe (industrial hazard motif) ---------- */
+  .stripe-bar{
+    height:6px;
+    background:repeating-linear-gradient(135deg, var(--yellow) 0 10px, var(--ink) 10px 20px);
+  }
+  /* ---------- Header ---------- */
+  header.top{
+    padding:20px 20px 0;
+    position:sticky;
+    top:0;
+    background:var(--ink);
+    z-index:20;
+  }
+  .brand-row{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+  }
+  .logo{
+    font-family:'Bebas Neue',sans-serif;
+    font-size:34px;
+    letter-spacing:1px;
+    line-height:1;
+  }
+  .logo .neo{color:var(--yellow);}
+  .logo .fit{color:var(--text);}
+  .tagline{
+    font-size:10px;
+    color:var(--muted);
+    text-transform:uppercase;
+    letter-spacing:1.5px;
+    font-weight:700;
+    margin-top:3px;
+  }
+  .admin-link{
+    background:none;border:none;color:var(--muted);
+    font-size:11px;font-weight:700;letter-spacing:.4px;
+    padding:6px 0;cursor:pointer;text-decoration:underline;
+    text-underline-offset:2px;
+  }
+  .admin-link.on{color:var(--yellow);}
+  .branch-tabs{
+    display:flex;
+    gap:6px;
+    overflow-x:auto;
+    margin:14px 0 0;
+    padding-bottom:14px;
+    scrollbar-width:none;
+  }
+  .branch-tabs::-webkit-scrollbar{display:none;}
+  .branch-tab{
+    flex:0 0 auto;
+    border:1px solid var(--border);
+    background:var(--surface);
+    color:var(--muted);
+    font-family:'Inter',sans-serif;
+    font-weight:700;
+    font-size:12.5px;
+    letter-spacing:.2px;
+    padding:9px 14px;
+    border-radius:999px;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .branch-tab.active{
+    background:var(--yellow);
+    color:var(--yellow-ink);
+    border-color:var(--yellow);
+  }
+  main{
+    flex:1;
+    padding:16px 20px 60px;
+  }
+  /* ---------- Buttons ---------- */
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    border:none;
+    cursor:pointer;
+    font-family:'Inter',sans-serif;
+    font-weight:700;
+    font-size:14px;
+    letter-spacing:.2px;
+    padding:13px 16px;
+    border-radius:11px;
+    transition:.15s transform;
+  }
+  .btn:active{transform:scale(.97);}
+  .btn-block{width:100%;}
+  .btn-sm{padding:9px 14px;font-size:12.5px;border-radius:9px;}
+  .btn-yellow{background:var(--yellow); color:var(--yellow-ink);}
+  .btn-outline{background:transparent;border:1.5px solid var(--border);color:var(--text);}
+  .btn-danger{background:transparent;border:1.5px solid var(--danger);color:var(--danger);}
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
+  .link-btn{
+    background:none;border:none;color:var(--muted);
+    font-size:12px;font-weight:700;cursor:pointer;padding:4px;
+    text-decoration:underline;text-underline-offset:2px;
+  }
+  /* ---------- Fields ---------- */
+  .field{text-align:left;margin-bottom:14px;}
+  .field label{
+    display:block;font-size:11.5px;font-weight:700;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;
+  }
+  .field input, .field select{
+    width:100%;background:var(--surface-2);border:1px solid var(--border);color:var(--text);
+    padding:12px 13px;border-radius:10px;font-size:15px;font-family:'Inter',sans-serif;
+  }
+  .field input:focus, .field select:focus{outline:none;border-color:var(--yellow);}
+  .form-row{display:flex;gap:10px;}
+  .form-row .field{flex:1;}
+  /* ---------- Cards / generic ---------- */
+  .card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:18px;
+  }
+  .toolbar-row{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;
+  }
+  .seg-tabs{
+    display:flex;gap:4px;background:var(--surface);padding:4px;border-radius:999px;border:1px solid var(--border);
+  }
+  .seg-tabs button{
+    border:none;background:transparent;color:var(--muted);font-weight:700;font-size:11.5px;
+    padding:8px 12px;border-radius:999px;cursor:pointer;
+  }
+  .seg-tabs button.active{background:var(--yellow);color:var(--yellow-ink);}
+  /* ---------- Calendar ---------- */
+  .cal-card{
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+    padding:16px;margin-bottom:16px;
+  }
+  .cal-header{
+    display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;
+  }
+  .cal-title{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:.4px;}
+  .nav-arrow{
+    background:var(--surface-2);border:1px solid var(--border);color:var(--text);
+    width:34px;height:34px;border-radius:50%;font-size:16px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+  .cal-dow{font-size:9.5px;color:var(--muted);text-align:center;padding:2px 0 6px;text-transform:uppercase;font-weight:700;}
+  .cal-cell{
+    aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    border-radius:9px;background:var(--surface-2);border:1.5px solid transparent;cursor:pointer;
+    color:var(--text);font-family:'Inter',sans-serif;
+  }
+  .cal-cell.outside{opacity:.25;}
+  .cal-cell.today{border-color:var(--green);}
+  .cal-cell.selected{background:var(--yellow);color:var(--yellow-ink);border-color:var(--yellow);}
+  .cal-cell .dnum{font-weight:700;font-size:13px;}
+  .cal-cell .ddot{width:5px;height:5px;border-radius:50%;background:var(--yellow);margin-top:3px;}
+  .cal-cell.selected .ddot{background:var(--yellow-ink);}
+  .cal-cell.today.selected{border-color:var(--yellow-ink);}
+  /* ---------- Day panel ---------- */
+  .day-panel-header{
+    display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;
+  }
+  .day-title{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:.4px;line-height:1;}
+  .day-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+  .class-card{
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+    padding:16px;margin-bottom:10px;display:flex;
+  }
+  .class-accent{width:5px;border-radius:4px;background:var(--yellow);margin-right:14px;flex-shrink:0;}
+  .class-body{flex:1;min-width:0;}
+  .class-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
+  .class-name{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:.3px;line-height:1.1;}
+  .class-meta{font-size:12.5px;color:var(--muted);margin-top:3px;}
+  .class-actions{display:flex;gap:6px;margin-top:12px;}
+  .icon-btn{
+    background:var(--surface-2);border:1px solid var(--border);color:var(--text);
+    width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:13px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .icon-btn.danger{color:var(--danger);border-color:var(--danger-dim);}
+  /* ---------- Empty state ---------- */
+  .empty-state{text-align:center;padding:44px 20px;color:var(--muted);}
+  .empty-stripe{
+    width:52px;height:10px;margin:0 auto 16px;border-radius:4px;
+    background:repeating-linear-gradient(135deg, var(--yellow) 0 8px, var(--surface-2) 8px 16px);
+  }
+  .empty-state .big{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--text);margin-bottom:4px;}
+  /* ---------- Template rows ---------- */
+  .section-label{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:700;margin:16px 0 8px;}
+  .tpl-row{
+    background:var(--surface);border:1px solid var(--border);border-radius:12px;
+    padding:13px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px;
+  }
+  .tpl-info .name{font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:.3px;}
+  .tpl-info .meta{font-size:11.5px;color:var(--muted);margin-top:2px;}
+  .tpl-actions{display:flex;gap:6px;flex-shrink:0;}
+  .action-row{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+  /* ---------- Modal ---------- */
+  .overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,.75);
+    display:flex;align-items:flex-end;justify-content:center;z-index:100;
+  }
+  .overlay.hidden{display:none;}
+  .modal{
+    background:var(--surface);width:100%;max-width:560px;border-radius:20px 20px 0 0;
+    padding:22px 20px 26px;max-height:85vh;overflow-y:auto;border-top:3px solid var(--yellow);
+  }
+  .modal h3{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:.4px;margin:0 0 14px;}
+  .modal-wrap{position:relative;}
+  .close-x{
+    position:absolute;top:-6px;right:0;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;
+  }
+  .toast{
+    position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+    background:var(--surface-2);border:1px solid var(--border);color:var(--text);
+    padding:11px 18px;border-radius:10px;font-size:13px;font-weight:600;
+    z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.5);
+    opacity:0;pointer-events:none;transition:.25s;max-width:80%;text-align:center;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important;} }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="top">
+    <div class="brand-row">
+      <div>
+        <!-- LOGO: ganti div di bawah ini dengan <img src="logo.png" style="height:40px"> kalau logo sudah jadi -->
+        <div class="logo"><span class="neo">NEO</span><span class="fit">FIT</span></div>
+        <div class="tagline">Jadwal Kelas Group Fitness</div>
+      </div>
+      <button class="admin-link" id="adminLinkBtn" onclick="toggleAdminPanel()">Admin</button>
+    </div>
+    <div class="branch-tabs" id="branchTabs"></div>
+  </header>
+  <div class="stripe-bar"></div>
+
+  <main id="mainContent"></main>
+</div>
+
+<div class="overlay hidden" id="overlay">
+  <div class="modal-wrap">
+    <div class="modal" id="modalBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   CONSTANTS
+========================================================= */
+const DAY_NAMES_ID = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+const DAY_NAMES_SHORT = ['MIN','SEN','SEL','RAB','KAM','JUM','SAB'];
+const MONTH_NAMES_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+
+const BRANCHES = [
+  {slug:'purwosari',  name:'Purwosari'},
+  {slug:'solobaru',   name:'Solo Baru'},
+  {slug:'sekarpace',  name:'Sekar Pace'},
+  {slug:'triyagan',   name:'Triyagan'},
+  {slug:'colomadu',   name:'Colomadu'},
+];
+
+/* =========================================================
+   SUPABASE CONFIG — fill these in after running
+   neofit_supabase_setup.sql (Project Settings → API)
+========================================================= */
+const SUPABASE_URL = 'https://mlxfncuoxnqbrzutyjai.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_Q4umwUUadJ-pteAleA5LcQ_F6JVSJVZ';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* =========================================================
+   STATE
+========================================================= */
+let state = {
+  activeBranch: BRANCHES[0].slug,
+  viewMonth: startOfMonth(new Date()),   // first-of-month Date, drives which month is shown
+  selectedDate: startOfDay(new Date()),
+  isAdmin: false,
+  showAdminLogin: false,
+  adminView: 'calendar',   // 'calendar' | 'templates'
+  monthClasses: [],        // classes covering the full visible calendar grid (42 days)
+  templates: [],           // weekly templates for the active branch (admin only)
+};
+
+/* =========================================================
+   DATE HELPERS
+========================================================= */
+function startOfDay(d){ const nd = new Date(d); nd.setHours(0,0,0,0); return nd; }
+function startOfMonth(d){ return new Date(d.getFullYear(), d.getMonth(), 1); }
+function addDays(date, n){ const nd = new Date(date); nd.setDate(nd.getDate()+n); return nd; }
+function toDateKey(date){
+  const y = date.getFullYear(), m = String(date.getMonth()+1).padStart(2,'0'), d = String(date.getDate()).padStart(2,'0');
+  return `${y}-${m}-${d}`;
+}
+function isSameDay(a,b){ return toDateKey(a) === toDateKey(b); }
+function getCalendarCells(year, month){
+  const firstOfMonth = new Date(year, month, 1);
+  const gridStart = addDays(firstOfMonth, -firstOfMonth.getDay());
+  const cells = [];
+  for(let i=0;i<42;i++){
+    const d = addDays(gridStart, i);
+    cells.push({date:d, inMonth: d.getMonth()===month});
+  }
+  return cells;
+}
+function branchName(slug){
+  const b = BRANCHES.find(b=>b.slug===slug);
+  return b ? b.name : slug;
+}
+
+/* =========================================================
+   DATA ACCESS
+========================================================= */
+async function loadMonthClasses(branch, viewMonth){
+  const cells = getCalendarCells(viewMonth.getFullYear(), viewMonth.getMonth());
+  const rangeStart = toDateKey(cells[0].date);
+  const rangeEndExclusive = toDateKey(addDays(cells[41].date, 1));
+  const { data, error } = await sb
+    .from('classes')
+    .select('*')
+    .eq('branch', branch)
+    .gte('class_date', rangeStart)
+    .lt('class_date', rangeEndExclusive)
+    .order('time');
+  if(error){ showToast('Gagal memuat jadwal: ' + error.message); return []; }
+  return data;
+}
+async function loadTemplates(branch){
+  const { data, error } = await sb.from('templates').select('*').eq('branch', branch);
+  if(error){ showToast('Gagal memuat template: ' + error.message); return []; }
+  return data;
+}
+
+/* =========================================================
+   ADMIN AUTH
+========================================================= */
+async function checkIsAdmin(userId){
+  const { data } = await sb.from('admins').select('user_id').eq('user_id', userId).maybeSingle();
+  return !!data;
+}
+async function restoreSession(){
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session) return;
+  state.isAdmin = await checkIsAdmin(session.user.id);
+}
+async function submitAdminLogin(){
+  const email = document.getElementById('adminEmail').value.trim();
+  const password = document.getElementById('adminPassword').value;
+  const errBox = document.getElementById('adminLoginError');
+  errBox.textContent = '';
+  if(!email || !password){ errBox.textContent = 'Email dan password wajib diisi.'; return; }
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if(error){ errBox.textContent = 'Login gagal: ' + error.message; return; }
+  const isAdmin = await checkIsAdmin(data.user.id);
+  if(!isAdmin){
+    await sb.auth.signOut();
+    errBox.textContent = 'Akun ini belum terdaftar sebagai admin.';
+    return;
+  }
+  state.isAdmin = true;
+  state.showAdminLogin = false;
+  showToast('Berhasil masuk sebagai admin.');
+  render();
+}
+async function adminLogout(){
+  await sb.auth.signOut();
+  state.isAdmin = false;
+  state.adminView = 'calendar';
+  render();
+}
+function toggleAdminPanel(){
+  if(state.isAdmin) return; // header link is hidden once logged in; logout lives in the toolbar
+  state.showAdminLogin = !state.showAdminLogin;
+  render();
+}
+
+/* =========================================================
+   CLASS CRUD (admin)
+========================================================= */
+async function saveClass(payload, editingId){
+  let error;
+  if(editingId){
+    ({ error } = await sb.from('classes').update(payload).eq('id', editingId));
+  } else {
+    ({ error } = await sb.from('classes').insert(payload));
+  }
+  if(error){ showToast('Gagal menyimpan: ' + error.message); return; }
+  closeModal();
+  showToast(editingId ? 'Kelas diperbarui.' : 'Kelas ditambahkan.');
+  await refreshMonth();
+  render();
+}
+async function deleteClass(classId){
+  if(!confirm('Hapus kelas ini?')) return;
+  const { error } = await sb.from('classes').delete().eq('id', classId);
+  if(error){ showToast('Gagal menghapus: ' + error.message); return; }
+  showToast('Kelas dihapus.');
+  await refreshMonth();
+  render();
+}
+
+/* =========================================================
+   TEMPLATE CRUD (admin)
+========================================================= */
+async function saveTemplate(payload, editingId){
+  let error;
+  if(editingId){
+    ({ error } = await sb.from('templates').update(payload).eq('id', editingId));
+  } else {
+    ({ error } = await sb.from('templates').insert(payload));
+  }
+  if(error){ showToast('Gagal menyimpan template: ' + error.message); return; }
+  closeModal();
+  showToast(editingId ? 'Template diperbarui.' : 'Template ditambahkan.');
+  state.templates = await loadTemplates(state.activeBranch);
+  render();
+}
+async function deleteTemplate(templateId){
+  if(!confirm('Hapus template ini? (Kelas yang sudah pernah di-generate ke jadwal tidak akan terhapus)')) return;
+  const { error } = await sb.from('templates').delete().eq('id', templateId);
+  if(error){ showToast('Gagal menghapus template: ' + error.message); return; }
+  showToast('Template dihapus.');
+  state.templates = await loadTemplates(state.activeBranch);
+  render();
+}
+
+/* =========================================================
+   GENERATE DATED CLASSES FROM TEMPLATES
+========================================================= */
+async function generateFromTemplates(branch, startDateKey, weeks){
+  const templates = state.templates.length ? state.templates : await loadTemplates(branch);
+  if(templates.length === 0){ showToast('Belum ada template untuk cabang ini.'); return; }
+
+  const startDate = startOfDay(new Date(startDateKey + 'T00:00:00'));
+  const totalDays = weeks * 7;
+  const endDateExclusive = addDays(startDate, totalDays);
+
+  // Pull existing classes across the range once, to skip duplicates.
+  const { data: existing, error: fetchErr } = await sb
+    .from('classes')
+    .select('class_date, time, name')
+    .eq('branch', branch)
+    .gte('class_date', toDateKey(startDate))
+    .lt('class_date', toDateKey(endDateExclusive));
+  if(fetchErr){ showToast('Gagal mengecek jadwal: ' + fetchErr.message); return; }
+  const existingKeys = new Set(existing.map(c => `${c.class_date}|${c.time}|${c.name}`));
+
+  const toInsert = [];
+  for(let i=0;i<totalDays;i++){
+    const d = addDays(startDate, i);
+    const dow = d.getDay();
+    const dateKey = toDateKey(d);
+    templates.filter(t => t.day_of_week === dow).forEach(t => {
+      const key = `${dateKey}|${t.time}|${t.name}`;
+      if(!existingKeys.has(key)){
+        toInsert.push({
+          branch, class_date: dateKey, time: t.time,
+          name: t.name, instructor: t.instructor
+        });
+        existingKeys.add(key);
+      }
+    });
+  }
+
+  if(toInsert.length === 0){
+    showToast('Tidak ada kelas baru — semua sudah pernah di-generate.');
+    closeModal();
+    return;
+  }
+  const { error } = await sb.from('classes').insert(toInsert);
+  if(error){ showToast('Gagal generate: ' + error.message); return; }
+  closeModal();
+  showToast(`${toInsert.length} kelas berhasil digenerate ke jadwal.`);
+  await refreshMonth();
+  render();
+}
+
+/* =========================================================
+   REFRESH HELPERS
+========================================================= */
+async function refreshMonth(){
+  state.monthClasses = await loadMonthClasses(state.activeBranch, state.viewMonth);
+}
+
+/* =========================================================
+   UI: TOAST
+========================================================= */
+let toastTimer = null;
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> t.classList.remove('show'), 2400);
+}
+
+/* =========================================================
+   UI: MODAL
+========================================================= */
+function openModal(html){
+  document.getElementById('modalBody').innerHTML = html;
+  document.getElementById('overlay').classList.remove('hidden');
+}
+function closeModal(){ document.getElementById('overlay').classList.add('hidden'); }
+document.getElementById('overlay').addEventListener('click', (e)=>{ if(e.target.id === 'overlay') closeModal(); });
+
+/* =========================================================
+   NAVIGATION: BRANCH / MONTH / DATE
+========================================================= */
+async function selectBranch(slug){
+  state.activeBranch = slug;
+  await refreshMonth();
+  if(state.isAdmin) state.templates = await loadTemplates(slug);
+  render();
+}
+async function shiftMonth(n){
+  const d = state.viewMonth;
+  state.viewMonth = new Date(d.getFullYear(), d.getMonth()+n, 1);
+  state.selectedDate = new Date(state.viewMonth);
+  await refreshMonth();
+  render();
+}
+function selectDate(dateKey){
+  state.selectedDate = startOfDay(new Date(dateKey + 'T00:00:00'));
+  render();
+}
+async function goToday(){
+  const today = startOfDay(new Date());
+  state.selectedDate = today;
+  state.viewMonth = startOfMonth(today);
+  await refreshMonth();
+  render();
+}
+function setAdminView(view){
+  state.adminView = view;
+  render();
+}
+
+/* =========================================================
+   RENDER: BRANCH TABS (always visible, header)
+========================================================= */
+function renderBranchTabs(){
+  const el = document.getElementById('branchTabs');
+  el.innerHTML = BRANCHES.map(b => `
+    <button class="branch-tab ${b.slug===state.activeBranch?'active':''}" onclick="selectBranch('${b.slug}')">${b.name}</button>
+  `).join('');
+  document.getElementById('adminLinkBtn').style.display = state.isAdmin ? 'none' : 'block';
+}
+
+/* =========================================================
+   RENDER: ADMIN LOGIN
+========================================================= */
+function renderAdminLogin(){
+  return `
+    <div class="card">
+      <div class="day-title" style="margin-bottom:4px;">Admin Login</div>
+      <div class="day-sub" style="margin-bottom:16px;">Khusus staf NEOFIT.</div>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="adminEmail" placeholder="staf@neofit.id">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="adminPassword" placeholder="Masukkan password" onkeydown="if(event.key==='Enter') submitAdminLogin()">
+      </div>
+      <button class="btn btn-yellow btn-block" onclick="submitAdminLogin()">Masuk</button>
+      <div id="adminLoginError" style="margin-top:12px;color:var(--danger);font-size:13px;line-height:1.5;"></div>
+      <button class="link-btn" style="margin-top:14px;" onclick="toggleAdminPanel()">Batal</button>
+    </div>
+  `;
+}
+
+/* =========================================================
+   RENDER: CALENDAR
+========================================================= */
+function renderCalendar(){
+  const cells = getCalendarCells(state.viewMonth.getFullYear(), state.viewMonth.getMonth());
+  const today = startOfDay(new Date());
+  const classDateSet = new Set(state.monthClasses.map(c => c.class_date));
+  const dowHtml = DAY_NAMES_SHORT.map(d => `<div class="cal-dow">${d}</div>`).join('');
+  const cellsHtml = cells.map(c => {
+    const dateKey = toDateKey(c.date);
+    const cls = ['cal-cell'];
+    if(!c.inMonth) cls.push('outside');
+    if(isSameDay(c.date, today)) cls.push('today');
+    if(isSameDay(c.date, state.selectedDate)) cls.push('selected');
+    const hasClasses = classDateSet.has(dateKey);
+    return `<button class="${cls.join(' ')}" onclick="selectDate('${dateKey}')">
+      <span class="dnum">${c.date.getDate()}</span>
+      ${hasClasses ? '<span class="ddot"></span>' : ''}
+    </button>`;
+  }).join('');
+  const isCurrentMonthToday = today.getFullYear()===state.viewMonth.getFullYear() && today.getMonth()===state.viewMonth.getMonth();
+  return `
+    <div class="cal-card">
+      <div class="cal-header">
+        <button class="nav-arrow" onclick="shiftMonth(-1)">‹</button>
+        <div style="text-align:center;">
+          <div class="cal-title">${MONTH_NAMES_ID[state.viewMonth.getMonth()]} ${state.viewMonth.getFullYear()}</div>
+          ${!isCurrentMonthToday ? `<button class="link-btn" style="margin-top:2px;" onclick="goToday()">Hari Ini</button>` : ''}
+        </div>
+        <button class="nav-arrow" onclick="shiftMonth(1)">›</button>
+      </div>
+      <div class="cal-grid">${dowHtml}${cellsHtml}</div>
+    </div>
+  `;
+}
+
+/* =========================================================
+   RENDER: DAY PANEL (classes for selected date)
+========================================================= */
+function renderClassCard(c){
+  return `
+    <div class="class-card">
+      <div class="class-accent"></div>
+      <div class="class-body">
+        <div class="class-top">
+          <div>
+            <div class="class-name">${c.name}</div>
+            <div class="class-meta">${c.time} • ${c.instructor}</div>
+          </div>
+        </div>
+        ${state.isAdmin ? `
+          <div class="class-actions">
+            <button class="icon-btn" onclick="openClassForm(${c.id})" title="Edit">✎</button>
+            <button class="icon-btn danger" onclick="deleteClass(${c.id})" title="Hapus">✕</button>
+          </div>
+        ` : ''}
+      </div>
+    </div>
+  `;
+}
+function renderDayPanel(){
+  const dateKey = toDateKey(state.selectedDate);
+  const dayClasses = state.monthClasses.filter(c => c.class_date === dateKey).sort((a,b)=>a.time.localeCompare(b.time));
+  const header = `
+    <div class="day-panel-header">
+      <div>
+        <div class="day-title">${DAY_NAMES_ID[state.selectedDate.getDay()]}</div>
+        <div class="day-sub">${state.selectedDate.getDate()} ${MONTH_NAMES_ID[state.selectedDate.getMonth()]} ${state.selectedDate.getFullYear()} • ${branchName(state.activeBranch)}</div>
+      </div>
+      ${state.isAdmin ? `<button class="btn btn-yellow btn-sm" onclick="openClassForm()">+ Tambah</button>` : ''}
+    </div>
+  `;
+  if(dayClasses.length === 0){
+    return header + `
+      <div class="empty-state">
+        <div class="empty-stripe"></div>
+        <div class="big">Tidak Ada Kelas</div>
+        <div>Belum ada jadwal untuk tanggal ini di ${branchName(state.activeBranch)}.</div>
+      </div>
+    `;
+  }
+  return header + dayClasses.map(renderClassCard).join('');
+}
+
+/* =========================================================
+   RENDER: CLASS FORM (add/edit a single dated class)
+========================================================= */
+function openClassForm(editingId){
+  const cls = editingId ? state.monthClasses.find(c => c.id === editingId) : null;
+  const dateVal = cls ? cls.class_date : toDateKey(state.selectedDate);
+  openModal(`
+    <div class="modal-wrap">
+      <button class="close-x" onclick="closeModal()">✕</button>
+      <h3>${cls ? 'Edit Kelas' : 'Tambah Kelas'}</h3>
+      <div class="day-sub" style="margin-bottom:14px;">Cabang: <b style="color:var(--text);">${branchName(state.activeBranch)}</b></div>
+      <div class="field">
+        <label>Nama Kelas</label>
+        <input type="text" id="fName" value="${cls ? cls.name : ''}" placeholder="cth. Zumba">
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>Tanggal</label>
+          <input type="date" id="fDate" value="${dateVal}">
+        </div>
+        <div class="field">
+          <label>Jam</label>
+          <input type="time" id="fTime" value="${cls ? cls.time : '08:00'}">
+        </div>
+      </div>
+      <div class="field">
+        <label>Instruktur</label>
+        <input type="text" id="fInstructor" value="${cls ? cls.instructor : ''}">
+      </div>
+      <button class="btn btn-yellow btn-block" onclick="submitClassForm(${editingId || 'null'})">Simpan Kelas</button>
+    </div>
+  `);
+}
+function submitClassForm(editingId){
+  const name = document.getElementById('fName').value.trim();
+  const class_date = document.getElementById('fDate').value;
+  const time = document.getElementById('fTime').value;
+  const instructor = document.getElementById('fInstructor').value.trim();
+  if(!name || !class_date || !time || !instructor){
+    showToast('Lengkapi semua kolom dengan benar.');
+    return;
+  }
+  saveClass({ branch: state.activeBranch, class_date, time, name, instructor }, editingId);
+}
+
+/* =========================================================
+   RENDER: WEEKLY TEMPLATES (admin)
+========================================================= */
+function renderTemplates(){
+  const items = state.templates;
+  let html = `
+    <div class="action-row">
+      <button class="btn btn-yellow btn-sm" onclick="openTemplateForm()">+ Tambah Template</button>
+      <button class="btn btn-outline btn-sm" onclick="openGenerateForm()">Generate ke Jadwal</button>
+    </div>
+  `;
+  const order = [1,2,3,4,5,6,0];
+  let any = false;
+  order.forEach(dow => {
+    const dayItems = items.filter(t => t.day_of_week === dow).sort((a,b)=>a.time.localeCompare(b.time));
+    if(dayItems.length === 0) return;
+    any = true;
+    html += `<div class="section-label">${DAY_NAMES_ID[dow]}</div>`;
+    dayItems.forEach(t => {
+      html += `
+        <div class="tpl-row">
+          <div class="tpl-info">
+            <div class="name">${t.name}</div>
+            <div class="meta">${t.time} • ${t.instructor}</div>
+          </div>
+          <div class="tpl-actions">
+            <button class="icon-btn" onclick="openTemplateForm(${t.id})" title="Edit">✎</button>
+            <button class="icon-btn danger" onclick="deleteTemplate(${t.id})" title="Hapus">✕</button>
+          </div>
+        </div>
+      `;
+    });
+  });
+  if(!any){
+    html += `
+      <div class="empty-state">
+        <div class="empty-stripe"></div>
+        <div class="big">Belum Ada Template</div>
+        <div>Buat template mingguan untuk ${branchName(state.activeBranch)}, lalu generate ke jadwal kalender.</div>
+      </div>
+    `;
+  }
+  return html;
+}
+function openTemplateForm(editingId){
+  const t = editingId ? state.templates.find(x => x.id === editingId) : null;
+  const dayOptions = [1,2,3,4,5,6,0].map(d => `<option value="${d}" ${t && t.day_of_week===d ? 'selected':''}>${DAY_NAMES_ID[d]}</option>`).join('');
+  openModal(`
+    <div class="modal-wrap">
+      <button class="close-x" onclick="closeModal()">✕</button>
+      <h3>${t ? 'Edit Template' : 'Template Baru'}</h3>
+      <div class="day-sub" style="margin-bottom:14px;">Cabang: <b style="color:var(--text);">${branchName(state.activeBranch)}</b></div>
+      <div class="field">
+        <label>Nama Kelas</label>
+        <input type="text" id="tName" value="${t ? t.name : ''}" placeholder="cth. TRX">
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>Hari</label>
+          <select id="tDay">${dayOptions}</select>
+        </div>
+        <div class="field">
+          <label>Jam</label>
+          <input type="time" id="tTime" value="${t ? t.time : '08:00'}">
+        </div>
+      </div>
+      <div class="field">
+        <label>Instruktur</label>
+        <input type="text" id="tInstructor" value="${t ? t.instructor : ''}">
+      </div>
+      <button class="btn btn-yellow btn-block" onclick="submitTemplateForm(${editingId || 'null'})">Simpan Template</button>
+    </div>
+  `);
+}
+function submitTemplateForm(editingId){
+  const name = document.getElementById('tName').value.trim();
+  const day_of_week = parseInt(document.getElementById('tDay').value, 10);
+  const time = document.getElementById('tTime').value;
+  const instructor = document.getElementById('tInstructor').value.trim();
+  if(!name || !time || !instructor){
+    showToast('Lengkapi semua kolom dengan benar.');
+    return;
+  }
+  saveTemplate({ branch: state.activeBranch, day_of_week, time, name, instructor }, editingId);
+}
+function openGenerateForm(){
+  openModal(`
+    <div class="modal-wrap">
+      <button class="close-x" onclick="closeModal()">✕</button>
+      <h3>Generate ke Jadwal</h3>
+      <div class="day-sub" style="margin-bottom:14px;">
+        Cabang: <b style="color:var(--text);">${branchName(state.activeBranch)}</b><br>
+        Ini akan membuat kelas bertanggal dari template mingguan. Kelas yang sudah ada (tanggal, jam, nama sama) otomatis dilewati.
+      </div>
+      <div class="field">
+        <label>Mulai Dari Tanggal</label>
+        <input type="date" id="gStart" value="${toDateKey(startOfDay(new Date()))}">
+      </div>
+      <div class="field">
+        <label>Jumlah Minggu</label>
+        <input type="number" id="gWeeks" min="1" max="26" value="4">
+      </div>
+      <button class="btn btn-yellow btn-block" onclick="submitGenerateForm()">Generate</button>
+    </div>
+  `);
+}
+function submitGenerateForm(){
+  const start = document.getElementById('gStart').value;
+  const weeks = parseInt(document.getElementById('gWeeks').value, 10);
+  if(!start || !weeks || weeks < 1){ showToast('Lengkapi tanggal mulai dan jumlah minggu.'); return; }
+  generateFromTemplates(state.activeBranch, start, weeks);
+}
+
+/* =========================================================
+   MASTER RENDER
+========================================================= */
+function render(){
+  renderBranchTabs();
+  const main = document.getElementById('mainContent');
+
+  if(state.showAdminLogin && !state.isAdmin){
+    main.innerHTML = renderAdminLogin();
+    return;
+  }
+
+  let toolbar = '';
+  if(state.isAdmin){
+    toolbar = `
+      <div class="toolbar-row">
+        <div class="seg-tabs">
+          <button class="${state.adminView==='calendar'?'active':''}" onclick="setAdminView('calendar')">Jadwal</button>
+          <button class="${state.adminView==='templates'?'active':''}" onclick="setAdminView('templates')">Template Mingguan</button>
+        </div>
+        <button class="link-btn" onclick="adminLogout()">Keluar</button>
+      </div>
+    `;
+  }
+
+  if(state.isAdmin && state.adminView === 'templates'){
+    main.innerHTML = toolbar + renderTemplates();
+    return;
+  }
+
+  main.innerHTML = toolbar + renderCalendar() + renderDayPanel();
+}
+
+/* =========================================================
+   BOOTSTRAP
+========================================================= */
+function showFatalError(err){
+  console.error(err);
+  const main = document.getElementById('mainContent');
+  if(main){
+    main.innerHTML = `
+      <div class="card" style="border-color:var(--danger);text-align:left;">
+        <div class="day-title" style="color:var(--danger);font-size:20px;">Terjadi Error</div>
+        <p style="color:var(--text);word-break:break-word;font-family:monospace;font-size:12px;line-height:1.6;">${(err && (err.message || String(err))) || 'Unknown error'}</p>
+        <p style="color:var(--muted);">Screenshot pesan ini dan kirim ke developer untuk diperbaiki.</p>
+      </div>
+    `;
+  }
+}
+window.addEventListener('error', (e) => showFatalError(e.error || e.message));
+window.addEventListener('unhandledrejection', (e) => showFatalError(e.reason));
+
+async function init(){
+  try{
+    await restoreSession();
+    if(state.isAdmin) state.templates = await loadTemplates(state.activeBranch);
+    await refreshMonth();
+    render();
+  } catch(err){
+    showFatalError(err);
+  }
+}
+init();
+</script>
+</body>
+</html>
